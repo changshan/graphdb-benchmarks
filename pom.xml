@@ -54,7 +54,7 @@
         <orientdb.version>2.2.5</orientdb.version>
         <titan.version>0.5.4</titan.version>
         <hbase.version>0.98.8-hadoop2</hbase.version>
-        <neo4j.version>2.0.1</neo4j.version>
+        <neo4j.version>3.2.3</neo4j.version>
         <dynamodb.titan.version>1.0.0</dynamodb.titan.version>
         <log4j2.version>2.1</log4j2.version>
         <maven.surefire.version>2.18.1</maven.surefire.version>
@@ -151,7 +151,7 @@
         <dependency>
             <groupId>org.apache.lucene</groupId>
             <artifactId>lucene-core</artifactId>
-            <version>3.6.2</version>
+            <version>5.5.0</version>
         </dependency>
         <dependency>
             <groupId>org.neo4j</groupId>
@@ -162,17 +162,6 @@
             <groupId>org.neo4j</groupId>
             <artifactId>neo4j</artifactId>
             <version>${neo4j.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.tinkerpop.blueprints</groupId>
-            <artifactId>blueprints-neo4j2-graph</artifactId>
-            <version>${blueprints.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>ch.qos.logback</groupId>
-                    <artifactId>logback-classic</artifactId>
-                </exclusion>
-            </exclusions>
         </dependency>
         <dependency>
             <groupId>com.orientechnologies</groupId>
