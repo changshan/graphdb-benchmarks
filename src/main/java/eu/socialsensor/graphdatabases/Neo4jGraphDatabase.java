@@ -1,13 +1,15 @@
 package eu.socialsensor.graphdatabases;
 
-import com.google.common.collect.Iterables;
-
-import eu.socialsensor.insert.Insertion;
-import eu.socialsensor.insert.Neo4jMassiveInsertion;
-import eu.socialsensor.insert.Neo4jSingleInsertion;
-import eu.socialsensor.main.BenchmarkingException;
-import eu.socialsensor.main.GraphDatabaseType;
-import eu.socialsensor.utils.Utils;
+import java.io.File;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
@@ -17,29 +19,24 @@ import org.neo4j.graphdb.GraphDatabaseService;
 import org.neo4j.graphdb.Label;
 import org.neo4j.graphdb.Node;
 import org.neo4j.graphdb.Path;
+import org.neo4j.graphdb.PathExpanders;
 import org.neo4j.graphdb.Relationship;
 import org.neo4j.graphdb.RelationshipType;
-import org.neo4j.graphdb.ResourceIterable;
+import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.schema.Schema;
-import org.neo4j.helpers.collection.IteratorUtil;
-import org.neo4j.kernel.GraphDatabaseAPI;
-import org.neo4j.kernel.TransactionBuilder;
-import org.neo4j.kernel.Traversal;
-import org.neo4j.tooling.GlobalGraphOperations;
+import org.neo4j.helpers.collection.Iterators;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
+import eu.socialsensor.insert.Insertion;
+import eu.socialsensor.insert.Neo4jMassiveInsertion;
+import eu.socialsensor.insert.Neo4jSingleInsertion;
+import eu.socialsensor.main.BenchmarkingException;
+import eu.socialsensor.main.GraphDatabaseType;
+import eu.socialsensor.utils.Utils;
 
 /**
  * Neo4j graph database implementation
@@ -69,7 +66,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     @Override
     public void open()
     {
-        neo4jGraph = new GraphDatabaseFactory().newEmbeddedDatabase(dbStorageDirectory.getAbsolutePath());
+        neo4jGraph = new GraphDatabaseFactory().newEmbeddedDatabase(new File(dbStorageDirectory.getAbsolutePath()));
         try (final Transaction tx = beginUnforcedTransaction())
         {
             try
@@ -88,7 +85,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     @Override
     public void createGraphForSingleLoad()
     {
-        neo4jGraph = new GraphDatabaseFactory().newEmbeddedDatabase(dbStorageDirectory.getAbsolutePath());
+        neo4jGraph = new GraphDatabaseFactory().newEmbeddedDatabase(new File((dbStorageDirectory.getAbsolutePath())));
         try (final Transaction tx = beginUnforcedTransaction())
         {
             try
@@ -118,7 +115,11 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         config.put("neostore.propertystore.db.mapped_memory", "250M");
         config.put("neostore.propertystore.db.strings.mapped_memory", "250M");
 
-        inserter = BatchInserters.inserter(dbStorageDirectory.getAbsolutePath(), config);
+        try {
+			inserter = BatchInserters.inserter(new File(dbStorageDirectory.getAbsolutePath()), config);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
         createDeferredSchema();
     }
 
@@ -189,7 +190,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     public void shortestPath(Node n1, Integer i)
     {
         PathFinder<Path> finder
-            = GraphAlgoFactory.shortestPath(Traversal.expanderForTypes(Neo4jGraphDatabase.RelTypes.SIMILAR), 5);
+            = GraphAlgoFactory.shortestPath(PathExpanders.forType(Neo4jGraphDatabase.RelTypes.SIMILAR), 5);
         Node n2 = getVertex(i);
         Path path = finder.findSinglePath(n1, n2);
 
@@ -197,19 +198,18 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
 
     //TODO can unforced option be pulled into configuration?
     private Transaction beginUnforcedTransaction() {
-        final TransactionBuilder builder = ((GraphDatabaseAPI) neo4jGraph).tx().unforced();
-        return builder.begin();
+        return ((GraphDatabaseAPI) neo4jGraph).beginTx();
     }
 
     @Override
     public int getNodeCount()
     {
-        int nodeCount = 0;
+        Long nodeCount = 0L;
         try (final Transaction tx = beginUnforcedTransaction())
         {
             try
             {
-                nodeCount = IteratorUtil.count(GlobalGraphOperations.at(neo4jGraph).getAllNodes());
+                nodeCount = Iterators.count(neo4jGraph.getAllNodes().iterator());
                 tx.success();
             }
             catch (Exception e)
@@ -219,7 +219,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
             }
         }
 
-        return nodeCount;
+        return nodeCount.intValue();
     }
 
     @Override
@@ -230,8 +230,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                Node n = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_ID, String.valueOf(nodeId)).iterator()
-                    .next();
+                Node n = neo4jGraph.findNodes(NODE_LABEL, NODE_ID, String.valueOf(nodeId)).next();
                 for (Relationship relationship : n.getRelationships(RelTypes.SIMILAR, Direction.OUTGOING))
                 {
                     Node neighbour = relationship.getOtherNode(n);
@@ -258,8 +257,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                Node n = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_ID, String.valueOf(nodeId)).iterator()
-                    .next();
+                Node n = neo4jGraph.findNodes(NODE_LABEL, NODE_ID, String.valueOf(nodeId)).next();
                 weight = getNodeOutDegree(n);
                 tx.success();
             }
@@ -276,13 +274,13 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     public double getNodeInDegree(Node node)
     {
         Iterable<Relationship> rel = node.getRelationships(Direction.OUTGOING, RelTypes.SIMILAR);
-        return (double) (IteratorUtil.count(rel));
+        return (double) (Iterators.count(rel.iterator()));
     }
 
     public double getNodeOutDegree(Node node)
     {
         Iterable<Relationship> rel = node.getRelationships(Direction.INCOMING, RelTypes.SIMILAR);
-        return (double) (IteratorUtil.count(rel));
+        return (double) (Iterators.count(rel.iterator()));
     }
 
     @Override
@@ -295,7 +293,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                for (Node n : GlobalGraphOperations.at(neo4jGraph).getAllNodes())
+                for (Node n : neo4jGraph.getAllNodes())
                 {
                     n.setProperty(NODE_COMMUNITY, communityCounter);
                     n.setProperty(COMMUNITY, communityCounter);
@@ -319,11 +317,12 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> nodes = neo4jGraph.findNodesByLabelAndProperty(Neo4jGraphDatabase.NODE_LABEL,
+            	ResourceIterator<Node> nodes = neo4jGraph.findNodes(Neo4jGraphDatabase.NODE_LABEL,
                     NODE_COMMUNITY, nodeCommunities);
-                for (Node n : nodes)
+                while(nodes.hasNext())
                 {
-                    for (Relationship r : n.getRelationships(RelTypes.SIMILAR, Direction.OUTGOING))
+                    Node n = nodes.next();
+					for (Relationship r : n.getRelationships(RelTypes.SIMILAR, Direction.OUTGOING))
                     {
                         Node neighbour = r.getOtherNode(n);
                         Integer community = (Integer) (neighbour.getProperty(COMMUNITY));
@@ -350,10 +349,10 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> iter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, COMMUNITY, community);
-                for (Node n : iter)
+              	ResourceIterator<Node> nodeitr = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY, community);
+                	while(nodeitr.hasNext())
                 {
-                    String nodeIdString = (String) (n.getProperty(NODE_ID));
+                    String nodeIdString = (String) (nodeitr.next().getProperty(NODE_ID));
                     nodes.add(Integer.valueOf(nodeIdString));
                 }
                 tx.success();
@@ -376,11 +375,11 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> iter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_COMMUNITY,
+            	ResourceIterator<Node> nodeitr = neo4jGraph.findNodes(NODE_LABEL, NODE_COMMUNITY,
                     nodeCommunity);
-                for (Node n : iter)
+                	while(nodeitr.hasNext())
                 {
-                    String nodeIdString = (String) (n.getProperty(NODE_ID));
+                    String nodeIdString = (String) (nodeitr.next().getProperty(NODE_ID));
                     nodes.add(Integer.valueOf(nodeIdString));
                 }
                 tx.success();
@@ -403,17 +402,18 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> nodes = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_COMMUNITY,
+            	ResourceIterator<Node> nodes = neo4jGraph.findNodes(NODE_LABEL, NODE_COMMUNITY,
                     nodeCommunity);
-                ResourceIterable<Node> comNodes = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, COMMUNITY,
+            	ResourceIterator<Node> comNodes = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY,
                     communityNodes);
-                for (Node node : nodes)
+               while(nodes.hasNext())
                 {
-                    Iterable<Relationship> relationships = node.getRelationships(RelTypes.SIMILAR, Direction.OUTGOING);
+                    Node node = nodes.next();
+					Iterable<Relationship> relationships = node.getRelationships(RelTypes.SIMILAR, Direction.OUTGOING);
                     for (Relationship r : relationships)
                     {
                         Node neighbor = r.getOtherNode(node);
-                        if (Iterables.contains(comNodes, neighbor))
+                        if (Iterators.contains(comNodes, neighbor))
                         {
                             edges++;
                         }
@@ -439,12 +439,12 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> iter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, COMMUNITY, community);
-                if (Iterables.size(iter) > 1)
+                ResourceIterator<Node> iter = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY, community);
+                if (Iterators.count(iter) > 1)
                 {
-                    for (Node n : iter)
+                    while(iter.hasNext())
                     {
-                        communityWeight += getNodeOutDegree(n);
+                        communityWeight += getNodeOutDegree(iter.next());
                     }
                 }
                 tx.success();
@@ -467,13 +467,13 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> iter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_COMMUNITY,
+                ResourceIterator<Node> iter = neo4jGraph.findNodes(NODE_LABEL, NODE_COMMUNITY,
                     nodeCommunity);
-                if (Iterables.size(iter) > 1)
+                if (Iterators.count(iter) > 1)
                 {
-                    for (Node n : iter)
+                    while(iter.hasNext())
                     {
-                        nodeCommunityWeight += getNodeOutDegree(n);
+                        nodeCommunityWeight += getNodeOutDegree(iter.next());
                     }
                 }
                 tx.success();
@@ -495,11 +495,10 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> fromIter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_COMMUNITY,
-                    nodeCommunity);
-                for (Node node : fromIter)
+                ResourceIterator<Node> fromIter = neo4jGraph.findNodes(NODE_LABEL, NODE_COMMUNITY,nodeCommunity);
+                while (fromIter.hasNext())
                 {
-                    node.setProperty(COMMUNITY, toCommunity);
+                	fromIter.next().setProperty(COMMUNITY, toCommunity);
                 }
                 tx.success();
             }
@@ -514,13 +513,13 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     @Override
     public double getGraphWeightSum()
     {
-        int edgeCount = 0;
+        Long edgeCount = 0L;
 
         try (final Transaction tx = beginUnforcedTransaction())
         {
             try
             {
-                edgeCount = IteratorUtil.count(GlobalGraphOperations.at(neo4jGraph).getAllRelationships());
+                edgeCount =Iterators.count(neo4jGraph.getAllRelationships().iterator());
                 tx.success();
             }
             catch (Exception e)
@@ -543,7 +542,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                for (Node n : GlobalGraphOperations.at(neo4jGraph).getAllNodes())
+                for (Node n : neo4jGraph.getAllNodes())
                 {
                     Integer communityId = (Integer) (n.getProperty(COMMUNITY));
                     if (!initCommunities.containsKey(communityId))
@@ -576,8 +575,8 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                Node node = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_COMMUNITY, nodeCommunity).iterator()
-                    .next();
+           	 ResourceIterator<Node> nodesIter = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY, community);
+             Node node =nodesIter.next();
                 community = (Integer) (node.getProperty(COMMUNITY));
                 tx.success();
             }
@@ -599,8 +598,8 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                Node node = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_ID, String.valueOf(nodeId)).iterator()
-                    .next();
+            	 ResourceIterator<Node> nodesIter = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY, community);
+                Node node =nodesIter.next();
                 community = (Integer) (node.getProperty(COMMUNITY));
                 tx.success();
             }
@@ -623,10 +622,10 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> nodes = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, COMMUNITY, community);
-                for (Node n : nodes)
+            	 ResourceIterator<Node> nodesIter = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY, community);
+            	 while(nodesIter.hasNext())
                 {
-                    Integer nodeCommunity = (Integer) (n.getProperty(COMMUNITY));
+                    Integer nodeCommunity = (Integer) (nodesIter.next().getProperty(COMMUNITY));
                     nodeCommunities.add(nodeCommunity);
                 }
                 tx.success();
@@ -652,11 +651,11 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
             {
                 for (int i = 0; i < numberOfCommunities; i++)
                 {
-                    ResourceIterable<Node> nodesIter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, COMMUNITY, i);
+               	 ResourceIterator<Node> nodesIter = neo4jGraph.findNodes(NODE_LABEL, COMMUNITY, i);
                     List<Integer> nodes = new ArrayList<Integer>();
-                    for (Node n : nodesIter)
+                    while(nodesIter.hasNext())
                     {
-                        String nodeIdString = (String) (n.getProperty(NODE_ID));
+                        String nodeIdString = (String) (nodesIter.next().getProperty(NODE_ID));
                         nodes.add(Integer.valueOf(nodeIdString));
                     }
                     communities.put(i, nodes);
@@ -680,8 +679,8 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
         {
             try
             {
-                ResourceIterable<Node> nodesIter = neo4jGraph.findNodesByLabelAndProperty(NODE_LABEL, NODE_ID, nodeId);
-                if (nodesIter.iterator().hasNext())
+            	 ResourceIterator<Node> nodesIter = neo4jGraph.findNodes(NODE_LABEL, NODE_ID, nodeId);
+                if (nodesIter.hasNext())
                 {
                     tx.success();
                     return true;
@@ -700,7 +699,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     @Override
     public Iterator<Node> getVertexIterator()
     {
-        return GlobalGraphOperations.at(neo4jGraph).getAllNodes().iterator();
+        return neo4jGraph.getAllNodes().iterator();
     }
 
     @Override
@@ -724,7 +723,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     @Override
     public Iterator<Relationship> getAllEdges()
     {
-        return GlobalGraphOperations.at(neo4jGraph).getAllRelationships().iterator();
+        return neo4jGraph.getAllRelationships().iterator();
     }
 
     @Override
@@ -773,8 +772,7 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     public Node getVertex(Integer i)
     {
         // note, this probably should be run in the context of an active transaction.
-        return neo4jGraph.findNodesByLabelAndProperty(Neo4jGraphDatabase.NODE_LABEL, NODE_ID, i.toString()).iterator()
-            .next();
+        return neo4jGraph.findNodes(Neo4jGraphDatabase.NODE_LABEL, NODE_ID, i.toString()).next();
     }
 
 }

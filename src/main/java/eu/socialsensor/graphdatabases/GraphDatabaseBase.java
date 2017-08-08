@@ -4,7 +4,7 @@ import java.io.File;
 import java.util.Set;
 
 import org.neo4j.graphdb.Transaction;
-import org.neo4j.kernel.GraphDatabaseAPI;
+import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -98,7 +98,7 @@ public abstract class GraphDatabaseBase<VertexIteratorType, EdgeIteratorType, Ve
             }
         } finally {//TODO fix this
             if(GraphDatabaseType.NEO4J == type) {
-                ((Transaction) tx).finish();
+                ((Transaction) tx).close();
             }
         }
     }
@@ -107,7 +107,7 @@ public abstract class GraphDatabaseBase<VertexIteratorType, EdgeIteratorType, Ve
     public void findNodesOfAllEdges() {
         Object tx = null;
         if(GraphDatabaseType.NEO4J == type) {//TODO fix this
-            tx = ((GraphDatabaseAPI) ((Neo4jGraphDatabase) this).neo4jGraph).tx().unforced().begin();
+            tx = ((GraphDatabaseAPI) ((Neo4jGraphDatabase) this).neo4jGraph).beginTx();
         }
         try {
             
@@ -163,7 +163,7 @@ public abstract class GraphDatabaseBase<VertexIteratorType, EdgeIteratorType, Ve
             }
         } finally {//TODO fix this
             if(GraphDatabaseType.NEO4J == type) {
-                ((Transaction) tx).finish();
+                ((Transaction) tx).close();
             }
         }
     }
