@@ -1,5 +1,7 @@
 package eu.socialsensor.insert;
 
+import org.janusgraph.core.JanusGraph;
+
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.core.util.TitanId;
 import com.tinkerpop.blueprints.Vertex;
@@ -16,9 +18,9 @@ import eu.socialsensor.main.GraphDatabaseType;
  */
 public class TitanMassiveInsertion extends InsertionBase<Vertex>
 {
-    private final BatchGraph<TitanGraph> batchGraph;
+    private final BatchGraph<JanusGraph> batchGraph;
 
-    public TitanMassiveInsertion(BatchGraph<TitanGraph> batchGraph, GraphDatabaseType type)
+    public TitanMassiveInsertion(BatchGraph<JanusGraph> batchGraph, GraphDatabaseType type)
     {
         super(type, null /* resultsPath */); // no temp files for massive load
                                              // insert

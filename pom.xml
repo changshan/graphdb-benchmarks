@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 
+    					http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <groupId>eu.socialsensor</groupId>
     <artifactId>graphdb-benchmarks</artifactId>
@@ -9,7 +11,7 @@
     <name>graphdb-benchmarks</name>
     <url>https://github.com/socialsensor/graphdb-benchmarks</url>
     <description>Performance benchmark between popular graph databases.</description>
-
+ 
     <parent>
         <groupId>org.sonatype.oss</groupId>
         <artifactId>oss-parent</artifactId>
@@ -52,10 +54,11 @@
     <properties>
         <blueprints.version>2.6.0</blueprints.version>
         <orientdb.version>2.2.5</orientdb.version>
-        <titan.version>0.5.4</titan.version>
+        <!-- <titan.version>0.5.4</titan.version>   -->
+        <janusgraph.version>0.1.1</janusgraph.version>
         <hbase.version>0.98.8-hadoop2</hbase.version>
         <neo4j.version>3.2.3</neo4j.version>
-        <dynamodb.titan.version>1.0.0</dynamodb.titan.version>
+        <dynamodb.titan.version>1.0.3</dynamodb.titan.version>
         <log4j2.version>2.1</log4j2.version>
         <maven.surefire.version>2.18.1</maven.surefire.version>
         <jdk.version>1.8</jdk.version>
@@ -193,6 +196,9 @@
             <artifactId>spatial4j</artifactId>
             <version>0.3</version>
         </dependency>
+        
+        
+        <!--  
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-berkeleyje</artifactId>
@@ -202,14 +208,14 @@
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-cassandra</artifactId>
             <version>${titan.version}</version>
-            <!--
+            
             <exclusions>
                 <exclusion>
                     <groupId>org.apache.httpcomponents</groupId>
                     <artifactId>httpcore</artifactId>
                 </exclusion>
             </exclusions>
-            -->
+           
         </dependency>
         <dependency>
             <groupId>com.thinkaurelius.titan</groupId>
@@ -220,7 +226,7 @@
             <groupId>com.thinkaurelius.titan</groupId>
             <artifactId>titan-core</artifactId>
             <version>${titan.version}</version>
-        </dependency>
+        </dependency> -->
         <dependency>
             <groupId>org.apache.hbase</groupId>
             <artifactId>hbase-client</artifactId>
@@ -228,9 +234,47 @@
         </dependency>
         <dependency>
             <groupId>com.amazonaws</groupId>
-            <artifactId>dynamodb-titan054-storage-backend</artifactId>
+            <artifactId>dynamodb-titan100-storage-backend</artifactId>
             <version>${dynamodb.titan.version}</version>
         </dependency>
+       
+        
+
+        
+        <dependency>
+		    <groupId>org.janusgraph</groupId>
+		    <artifactId>janusgraph-cassandra</artifactId>
+		    <version>${janusgraph.version}</version>
+		</dependency>
+		
+		<dependency>
+		    <groupId>org.janusgraph</groupId>
+		    <artifactId>janusgraph-es</artifactId>
+		    <version>${janusgraph.version}</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.janusgraph</groupId>
+		    <artifactId>janusgraph-berkeleyje</artifactId>
+		    <version>${janusgraph.version}</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.janusgraph</groupId>
+		    <artifactId>janusgraph-hbase</artifactId>
+		    <version>${janusgraph.version}</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.janusgraph</groupId>
+		    <artifactId>janusgraph-hadoop-core</artifactId>
+		    <version>${janusgraph.version}</version>
+		    <exclusions> 
+		    	<exclusion>
+		    		<groupId>org.janusgraph</groupId>
+		    		<artifactId>janusgraph-hbase-core</artifactId>
+		    	</exclusion>
+		    </exclusions>
+		</dependency>
+        
+        
         <dependency>
             <groupId>com.sparsity</groupId>
             <artifactId>sparkseejava</artifactId>
@@ -252,6 +296,13 @@
             <artifactId>metrics-core</artifactId>
             <version>${metrics.version}</version>
         </dependency>
+        <dependency>  
+		    <groupId>jdk.tools</groupId>  
+		    <artifactId>jdk.tools</artifactId>  
+		    <version>1.7</version>  
+		    <scope>system</scope>  
+		    <systemPath>${JAVA_HOME}/lib/tools.jar</systemPath>  
+	   </dependency> 
     </dependencies>
     <build>
         <pluginManagement>
@@ -418,6 +469,7 @@
                                     <goal>test</goal>
                                 </goals>
                                 <configuration>
+                                	<argLine>-Xmx4000m -XX:-UseGCOverheadLimit</argLine>
                                     <includes>
                                         <include>**/GraphDatabaseBenchmarkTest.java</include>
                                     </includes>

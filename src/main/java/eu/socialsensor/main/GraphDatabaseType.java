@@ -12,22 +12,24 @@ import java.util.Set;
  */
 public enum GraphDatabaseType
 {
-    TITAN_BERKELEYDB("Titan", "berkeleyje", "tbdb"),
-    TITAN_DYNAMODB("Titan", "com.amazon.titan.diskstorage.dynamodb.DynamoDBStoreManager", "tddb"),
-    TITAN_CASSANDRA("Titan", "cassandra", "tc"),
-    TITAN_CASSANDRA_EMBEDDED("TitanEmbedded", "embeddedcassandra", "tce"),
-    TITAN_HBASE("Titan", "hbase", "thb"),
-    TITAN_PERSISTIT("TitanEmbedded", "persistit", "tp"),
+    TITAN_BERKELEYDB("JanusGraph", "berkeleyje", "tbdb"),
+    TITAN_DYNAMODB("JanusGraph", "com.amazon.titan.diskstorage.dynamodb.DynamoDBStoreManager", "tddb"),
+    TITAN_CASSANDRA("JanusGraph", "cassandra", "tc"),
+    TITAN_CASSANDRA_EMBEDDED("JanusGraphEmbedded", "embeddedcassandra", "tce"),
+    TITAN_HBASE("JanusGraph", "hbase", "thb"),
+    TITAN_PERSISTIT("JanusGraphEmbedded", "persistit", "tp"),
+    
     ORIENT_DB("OrientDB", null, "orient"),
     NEO4J("Neo4j", null, "neo4j"),
     SPARKSEE("Sparksee", null, "sparksee");
-
+    
     private final String backend;
     private final String api;
     private final String shortname;
 
     public static final Map<String, GraphDatabaseType> STRING_REP_MAP = new HashMap<String, GraphDatabaseType>();
     public static final Set<GraphDatabaseType> TITAN_FLAVORS = new HashSet<GraphDatabaseType>();
+
     static
     {
         for (GraphDatabaseType db : values())

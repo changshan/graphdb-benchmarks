@@ -2,6 +2,9 @@ package eu.socialsensor.insert;
 
 import java.io.File;
 
+import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.util.JanusGraphId;
+
 import com.thinkaurelius.titan.core.TitanGraph;
 import com.thinkaurelius.titan.core.util.TitanId;
 import com.tinkerpop.blueprints.Compare;
@@ -18,9 +21,9 @@ import eu.socialsensor.main.GraphDatabaseType;
  */
 public class TitanSingleInsertion extends InsertionBase<Vertex>
 {
-    private final TitanGraph titanGraph;
+    private final JanusGraph titanGraph;
 
-    public TitanSingleInsertion(TitanGraph titanGraph, GraphDatabaseType type, File resultsPath)
+    public TitanSingleInsertion(JanusGraph titanGraph, GraphDatabaseType type, File resultsPath)
     {
         super(type, resultsPath);
         this.titanGraph = titanGraph;
@@ -37,10 +40,9 @@ public class TitanSingleInsertion extends InsertionBase<Vertex>
         }
         else
         {
-            final long titanVertexId = TitanId.toVertexId(intValue);
-            v = titanGraph.addVertex(titanVertexId);
+            final long titanVertexId = JanusGraphId.toVertexId(intValue);
             v.setProperty("nodeId", intValue);
-            titanGraph.commit();
+            titanGraph.tx().commit();
         }
         return v;
     }
@@ -50,12 +52,14 @@ public class TitanSingleInsertion extends InsertionBase<Vertex>
     {
         try
         {
-            titanGraph.addEdge(null, src, dest, "similar");
-            titanGraph.commit();
+        	//titanGraph.addEdge(null, src, dest, "similar");
+        	//titanGraph.addVertex("similar");
+        	src.addEdge("similar", dest);
+            titanGraph.tx().commit();
         }
         catch (Exception e)
         {
-            titanGraph.rollback(); //TODO(amcp) why can this happen? doesn't this indicate illegal state?
+            titanGraph.tx().rollback(); //TODO(amcp) why can this happen? doesn't this indicate illegal state?
         }
     }
 }

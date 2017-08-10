@@ -80,6 +80,7 @@ public class Utils
             while (it.hasNext())
             {
                 result.add(it.nextLine());
+                //System.out.println("++++++++"+it.nextLine()+"++++++++++");
             }
         }
         finally
@@ -198,10 +199,9 @@ public class Utils
         else if (GraphDatabaseType.SPARKSEE == type)
         {
             graphDatabase = new SparkseeGraphDatabase(config, dbStorageDirectory);
-        }
-        else
-        {
-            // For safety, will handle the null case
+            
+        }else {
+        	// For safety, will handle the null case
             throw new IllegalArgumentException("Unknown type: " + type == null ? "null" : type.toString());
         }
 

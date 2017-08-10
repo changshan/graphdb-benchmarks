@@ -14,6 +14,14 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
+import org.apache.tinkerpop.gremlin.structure.Element;
+import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.JanusGraphFactory;
+import org.janusgraph.core.Multiplicity;
+import org.janusgraph.core.PropertyKey;
+import org.janusgraph.core.schema.JanusGraphManagement;
+import org.janusgraph.core.util.JanusGraphCleanup;
+import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
 
 import com.amazon.titan.diskstorage.dynamodb.BackendDataModel;
 import com.amazon.titan.diskstorage.dynamodb.Client;
@@ -25,13 +33,6 @@ import com.amazonaws.services.dynamodbv2.AmazonDynamoDBClient;
 import com.amazonaws.services.dynamodbv2.model.CreateTableRequest;
 import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
 import com.google.common.collect.Iterables;
-import com.thinkaurelius.titan.core.Multiplicity;
-import com.thinkaurelius.titan.core.PropertyKey;
-import com.thinkaurelius.titan.core.TitanFactory;
-import com.thinkaurelius.titan.core.TitanGraph;
-import com.thinkaurelius.titan.core.schema.TitanManagement;
-import com.thinkaurelius.titan.core.util.TitanCleanup;
-import com.thinkaurelius.titan.graphdb.configuration.GraphDatabaseConfiguration;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
 import com.tinkerpop.blueprints.Vertex;
@@ -60,8 +61,8 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
 
     double totalWeight;
 
-    private TitanGraph titanGraph;
-    private BatchGraph<TitanGraph> batchGraph;
+    private JanusGraph titanGraph;
+    private BatchGraph<JanusGraph> batchGraph;
     public final BenchmarkConfiguration config;
 
     public TitanGraphDatabase(GraphDatabaseType type, BenchmarkConfiguration config, File dbStorageDirectory)
@@ -133,7 +134,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return conf;
     }
 
-    private static final TitanGraph buildTitanGraph(GraphDatabaseType type, File dbPath, BenchmarkConfiguration bench,
+    private static final JanusGraph buildTitanGraph(GraphDatabaseType type, File dbPath, BenchmarkConfiguration bench,
         boolean batchLoading)
     {
         final Configuration conf = generateBaseTitanConfiguration(type, dbPath, batchLoading, bench);
@@ -204,7 +205,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
                 store.addProperty(Constants.STORES_WRITE_RATE_LIMIT.getName(), writeTps);
             }
         }
-        return TitanFactory.open(conf);
+        return JanusGraphFactory.open(conf);
     }
 
     private void open(boolean batchLoading)
@@ -252,7 +253,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         open(true /* batchLoading */);
         createSchema();
 
-        batchGraph = new BatchGraph<TitanGraph>(titanGraph, VertexIDType.NUMBER, 100000 /* bufferSize */);
+        batchGraph = new BatchGraph<JanusGraph>(titanGraph, VertexIDType.NUMBER, 100000 /* bufferSize */);
         batchGraph.setVertexIdKey(NODE_ID);
         batchGraph.setLoadingFromScratch(true /* fromScratch */);
     }
@@ -280,7 +281,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         }
         try
         {
-            titanGraph.shutdown();
+            titanGraph.close();
         }
         catch (IOError e)
         {
@@ -297,17 +298,17 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         titanGraph = buildTitanGraph(type, dbStorageDirectory, config, false /* batchLoading */);
         try
         {
-            titanGraph.shutdown();
+            titanGraph.close();
         }
         catch (IOError e)
         {
             // TODO Fix issue in shutting down titan-cassandra-embedded
             System.err.println("Failed to shutdown titan graph: " + e.getMessage());
         }
-        TitanCleanup.clear(titanGraph);
+        JanusGraphCleanup.clear(titanGraph);
         try
         {
-            titanGraph.shutdown();
+            titanGraph.close();
         }
         catch (IOError e)
         {
@@ -335,7 +336,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         }
         try
         {
-            titanGraph.shutdown();
+            titanGraph.close();
         }
         catch (IOError e)
         {
@@ -593,21 +594,21 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
 
     private void createSchema()
     {
-        final TitanManagement mgmt = titanGraph.getManagementSystem();
-        if (!titanGraph.getIndexedKeys(Vertex.class).contains(NODE_ID))
+        final JanusGraphManagement mgmt = titanGraph.openManagement();
+        if (!titanGraph.containsPropertyKey(NODE_ID))
         {
             final PropertyKey key = mgmt.makePropertyKey(NODE_ID).dataType(Integer.class).make();
-            mgmt.buildIndex(NODE_ID, Vertex.class).addKey(key).unique().buildCompositeIndex();
+            mgmt.buildIndex(NODE_ID, (Class<? extends Element>) Vertex.class).addKey(key).unique().buildCompositeIndex();
         }
-        if (!titanGraph.getIndexedKeys(Vertex.class).contains(COMMUNITY))
+        if (!titanGraph.containsPropertyKey(COMMUNITY))
         {
             final PropertyKey key = mgmt.makePropertyKey(COMMUNITY).dataType(Integer.class).make();
-            mgmt.buildIndex(COMMUNITY, Vertex.class).addKey(key).buildCompositeIndex();
+            mgmt.buildIndex(COMMUNITY, (Class<? extends Element>) Vertex.class).addKey(key).buildCompositeIndex();
         }
-        if (!titanGraph.getIndexedKeys(Vertex.class).contains(NODE_COMMUNITY))
+        if (!titanGraph.containsPropertyKey(NODE_COMMUNITY))
         {
             final PropertyKey key = mgmt.makePropertyKey(NODE_COMMUNITY).dataType(Integer.class).make();
-            mgmt.buildIndex(NODE_COMMUNITY, Vertex.class).addKey(key).buildCompositeIndex();
+            mgmt.buildIndex(NODE_COMMUNITY, (Class<? extends Element>) Vertex.class).addKey(key).buildCompositeIndex();
         }
 
         if (mgmt.getEdgeLabel(SIMILAR) == null)
