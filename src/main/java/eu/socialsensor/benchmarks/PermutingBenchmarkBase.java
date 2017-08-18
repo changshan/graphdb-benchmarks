@@ -24,6 +24,7 @@ public abstract class PermutingBenchmarkBase extends BenchmarkBase
 {
     protected final Map<GraphDatabaseType, List<Double>> times;
     private static final Logger LOG = LogManager.getLogger();
+    long benchNum = 1;
 
     protected PermutingBenchmarkBase(BenchmarkConfiguration bench, BenchmarkType typeIn)
     {

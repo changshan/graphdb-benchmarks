@@ -28,6 +28,8 @@ import com.tinkerpop.blueprints.TransactionalGraph;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.impls.orient.OrientExtendedGraph;
 
+import eu.socialsensor.graphdatabases.GraphDatabaseBase;
+
 /**
  * Implementation of single Insertion in OrientDB graph database
  * 
@@ -61,7 +63,7 @@ public abstract class OrientAbstractInsertion implements Insertion {
 			return orientGraph.getVertex(rec);
 		}
 		
-		v = orientGraph.addVertex(key, "nodeId", key);
+		v = orientGraph.addVertex(key, GraphDatabaseBase.NODE_ID, key);
   
 		if (orientGraph instanceof TransactionalGraph) {
 			((TransactionalGraph) orientGraph).commit();

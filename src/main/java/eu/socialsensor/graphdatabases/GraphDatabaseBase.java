@@ -12,7 +12,6 @@ import com.codahale.metrics.Timer;
 import eu.socialsensor.main.GraphDatabaseBenchmark;
 import eu.socialsensor.main.GraphDatabaseType;
 
-@SuppressWarnings("deprecation")
 public abstract class GraphDatabaseBase<VertexIteratorType, EdgeIteratorType, VertexType, EdgeType> implements GraphDatabase<VertexIteratorType, EdgeIteratorType, VertexType, EdgeType>
 {
     public static final String SIMILAR = "similar";

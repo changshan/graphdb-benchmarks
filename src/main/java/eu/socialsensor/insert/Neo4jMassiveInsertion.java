@@ -5,6 +5,7 @@ import java.util.Map;
 import org.neo4j.helpers.collection.MapUtil;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 
+import eu.socialsensor.graphdatabases.GraphDatabaseBase;
 import eu.socialsensor.graphdatabases.Neo4jGraphDatabase;
 import eu.socialsensor.main.GraphDatabaseType;
 
@@ -32,7 +33,7 @@ public final class Neo4jMassiveInsertion extends InsertionBase<Long>
         Long id = cache.get(Long.valueOf(value));
         if (id == null)
         {
-            Map<String, Object> properties = MapUtil.map("nodeId", value);
+            Map<String, Object> properties = MapUtil.map(GraphDatabaseBase.NODE_ID, value);
             id = inserter.createNode(properties, Neo4jGraphDatabase.NODE_LABEL);
             cache.put(Long.valueOf(value), id);
         }

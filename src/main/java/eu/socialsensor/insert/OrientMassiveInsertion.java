@@ -4,6 +4,7 @@ import com.orientechnologies.orient.core.config.OGlobalConfiguration;
 import com.orientechnologies.orient.graph.batch.OGraphBatchInsertBasic;
 import com.tinkerpop.blueprints.impls.orient.OrientGraphNoTx;
 
+import eu.socialsensor.graphdatabases.GraphDatabaseBase;
 import eu.socialsensor.main.GraphDatabaseType;
 
 /**
@@ -35,7 +36,7 @@ public class OrientMassiveInsertion extends InsertionBase<Long> implements Inser
         graph = new OGraphBatchInsertBasic(url);
         graph.setAverageEdgeNumberPerNode(AVERAGE_NUMBER_OF_EDGES_PER_NODE);
         graph.setEstimatedEntries(ESTIMATED_ENTRIES);
-        graph.setIdPropertyName("nodeId");
+        graph.setIdPropertyName(GraphDatabaseBase.NODE_ID);
         graph.begin();
     }
 

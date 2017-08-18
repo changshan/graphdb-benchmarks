@@ -8,6 +8,7 @@ import com.tinkerpop.blueprints.TransactionalGraph;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.impls.orient.OrientGraph;
 
+import eu.socialsensor.graphdatabases.GraphDatabaseBase;
 import eu.socialsensor.main.GraphDatabaseType;
 
 /**
@@ -32,7 +33,7 @@ public final class OrientSingleInsertion extends InsertionBase<Vertex>
     @Override
     protected void relateNodes(Vertex src, Vertex dest)
     {
-        orientGraph.addEdge(null, src, dest, "similar");
+        orientGraph.addEdge(null, src, dest, GraphDatabaseBase.SIMILAR);
 
         // TODO why commit twice? is this a nested transaction?
         if (orientGraph instanceof TransactionalGraph)
@@ -54,7 +55,7 @@ public final class OrientSingleInsertion extends InsertionBase<Vertex>
             return orientGraph.getVertex(rec);
         }
 
-        v = orientGraph.addVertex(key, "nodeId", key);
+        v = orientGraph.addVertex(key, GraphDatabaseBase.NODE_ID, key);
 
         if (orientGraph instanceof TransactionalGraph)
         {

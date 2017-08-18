@@ -1,12 +1,9 @@
 package eu.socialsensor.insert;
 
-import org.janusgraph.core.JanusGraph;
-
-import com.thinkaurelius.titan.core.TitanGraph;
-import com.thinkaurelius.titan.core.util.TitanId;
+import org.janusgraph.core.util.JanusGraphId;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.util.wrappers.batch.BatchGraph;
-
+import eu.socialsensor.graphdatabases.GraphDatabaseBase;
 import eu.socialsensor.main.GraphDatabaseType;
 
 /**
@@ -16,11 +13,12 @@ import eu.socialsensor.main.GraphDatabaseType;
  * @author Alexander Patrikalakis
  * 
  */
-public class TitanMassiveInsertion extends InsertionBase<Vertex>
+public class JanusGraphMassiveInsertion extends InsertionBase<Vertex>
 {
-    private final BatchGraph<JanusGraph> batchGraph;
+    @SuppressWarnings("rawtypes")
+	private final BatchGraph batchGraph;
 
-    public TitanMassiveInsertion(BatchGraph<JanusGraph> batchGraph, GraphDatabaseType type)
+    public JanusGraphMassiveInsertion(BatchGraph batchGraph, GraphDatabaseType type)
     {
         super(type, null /* resultsPath */); // no temp files for massive load
                                              // insert
@@ -31,12 +29,12 @@ public class TitanMassiveInsertion extends InsertionBase<Vertex>
     public Vertex getOrCreate(String value)
     {
         Integer intVal = Integer.valueOf(value);
-        final long titanVertexId = TitanId.toVertexId(intVal);
-        Vertex vertex = batchGraph.getVertex(titanVertexId);
+        final long janusGraphId = JanusGraphId.toVertexId(intVal);
+        Vertex vertex = batchGraph.getVertex(janusGraphId);
         if (vertex == null)
         {
-            vertex = batchGraph.addVertex(titanVertexId);
-            vertex.setProperty("nodeId", intVal);
+            vertex = batchGraph.addVertex(janusGraphId);
+            vertex.setProperty(GraphDatabaseBase.NODE_ID, intVal);
         }
         return vertex;
     }
@@ -44,6 +42,6 @@ public class TitanMassiveInsertion extends InsertionBase<Vertex>
     @Override
     public void relateNodes(Vertex src, Vertex dest)
     {
-        src.addEdge("similar", dest);
+        src.addEdge(GraphDatabaseBase.SIMILAR, dest);
     }
 }

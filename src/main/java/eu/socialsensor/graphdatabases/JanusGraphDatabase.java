@@ -16,12 +16,15 @@ import org.apache.commons.configuration.Configuration;
 import org.apache.commons.configuration.MapConfiguration;
 import org.apache.tinkerpop.gremlin.structure.Element;
 import org.janusgraph.core.JanusGraph;
+import org.janusgraph.core.JanusGraphEdge;
 import org.janusgraph.core.JanusGraphFactory;
 import org.janusgraph.core.Multiplicity;
 import org.janusgraph.core.PropertyKey;
 import org.janusgraph.core.schema.JanusGraphManagement;
 import org.janusgraph.core.util.JanusGraphCleanup;
+import org.janusgraph.core.util.JanusGraphId;
 import org.janusgraph.graphdb.configuration.GraphDatabaseConfiguration;
+import org.janusgraph.graphdb.configuration.JanusGraphConstants;
 
 import com.amazon.titan.diskstorage.dynamodb.BackendDataModel;
 import com.amazon.titan.diskstorage.dynamodb.Client;
@@ -35,6 +38,7 @@ import com.amazonaws.services.dynamodbv2.model.ResourceInUseException;
 import com.google.common.collect.Iterables;
 import com.tinkerpop.blueprints.Direction;
 import com.tinkerpop.blueprints.Edge;
+import com.tinkerpop.blueprints.TransactionalGraph;
 import com.tinkerpop.blueprints.Vertex;
 import com.tinkerpop.blueprints.util.wrappers.batch.BatchGraph;
 import com.tinkerpop.blueprints.util.wrappers.batch.VertexIDType;
@@ -43,29 +47,28 @@ import com.tinkerpop.pipes.PipeFunction;
 import com.tinkerpop.pipes.branch.LoopPipe.LoopBundle;
 
 import eu.socialsensor.insert.Insertion;
-import eu.socialsensor.insert.TitanMassiveInsertion;
-import eu.socialsensor.insert.TitanSingleInsertion;
+import eu.socialsensor.insert.JanusGraphMassiveInsertion;
+import eu.socialsensor.insert.JanusGraphSingleInsertion;
 import eu.socialsensor.main.BenchmarkConfiguration;
 import eu.socialsensor.main.GraphDatabaseType;
 import eu.socialsensor.utils.Utils;
 
 /**
- * Titan graph database implementation
+ * Janus graph database implementation
  * 
  * @author sotbeis, sotbeis@iti.gr
  * @author Alexander Patrikalakis
  */
-public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iterator<Edge>, Vertex, Edge>
+public class JanusGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iterator<Edge>, Vertex, Edge>
 {
     public static final String INSERTION_TIMES_OUTPUT_PATH = "data/titan.insertion.times";
 
     double totalWeight;
-
-    private JanusGraph titanGraph;
-    private BatchGraph<JanusGraph> batchGraph;
+    private JanusGraph janusGraph;
+    private BatchGraph batchGraph;
     public final BenchmarkConfiguration config;
 
-    public TitanGraphDatabase(GraphDatabaseType type, BenchmarkConfiguration config, File dbStorageDirectory)
+    public JanusGraphDatabase(GraphDatabaseType type, BenchmarkConfiguration config, File dbStorageDirectory)
     {
         super(type, dbStorageDirectory);
         this.config = config;
@@ -82,7 +85,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         open(false /* batchLoading */);
     }
 
-    private static final Configuration generateBaseTitanConfiguration(GraphDatabaseType type, File dbPath,
+    private static final Configuration generateBaseJanusGraphConfiguration(GraphDatabaseType type, File dbPath,
         boolean batchLoading, BenchmarkConfiguration bench)
     {
         if (!GraphDatabaseType.TITAN_FLAVORS.contains(type))
@@ -134,10 +137,10 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return conf;
     }
 
-    private static final JanusGraph buildTitanGraph(GraphDatabaseType type, File dbPath, BenchmarkConfiguration bench,
+    private static final JanusGraph buildJanusGraph(GraphDatabaseType type, File dbPath, BenchmarkConfiguration bench,
         boolean batchLoading)
     {
-        final Configuration conf = generateBaseTitanConfiguration(type, dbPath, batchLoading, bench);
+        final Configuration conf = generateBaseJanusGraphConfiguration(type, dbPath, batchLoading, bench);
         final Configuration storage = conf.subset(GraphDatabaseConfiguration.STORAGE_NS.getName());
 
         if (GraphDatabaseType.TITAN_CASSANDRA == type)
@@ -208,7 +211,8 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return JanusGraphFactory.open(conf);
     }
 
-    private void open(boolean batchLoading)
+    @SuppressWarnings("deprecation")
+	private void open(boolean batchLoading)
     {
         if(type == GraphDatabaseType.TITAN_DYNAMODB && config.getDynamodbPrecreateTables()) {
             List<CreateTableRequest> requests = new LinkedList<>();
@@ -224,7 +228,8 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
                 }
             }
             //TODO is this autocloseable?
-            final AmazonDynamoDB client =
+            @SuppressWarnings("deprecation")
+			final AmazonDynamoDB client =
                 new AmazonDynamoDBClient(Client.createAWSCredentialsProvider(config.getDynamodbCredentialsFqClassName(),
                     config.getDynamodbCredentialsCtorArguments() == null ? null : config.getDynamodbCredentialsCtorArguments().split(",")));
             client.setEndpoint(config.getDynamodbEndpoint());
@@ -237,7 +242,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
             }
             client.shutdown();
         }
-        titanGraph = buildTitanGraph(type, dbStorageDirectory, config, batchLoading);
+        janusGraph = buildJanusGraph(type, dbStorageDirectory, config, batchLoading);
     }
 
     @Override
@@ -253,7 +258,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         open(true /* batchLoading */);
         createSchema();
 
-        batchGraph = new BatchGraph<JanusGraph>(titanGraph, VertexIDType.NUMBER, 100000 /* bufferSize */);
+        batchGraph = new BatchGraph((TransactionalGraph) janusGraph, VertexIDType.NUMBER, 100000 /* bufferSize */);
         batchGraph.setVertexIdKey(NODE_ID);
         batchGraph.setLoadingFromScratch(true /* fromScratch */);
     }
@@ -261,27 +266,27 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public void massiveModeLoading(File dataPath)
     {
-        Insertion titanMassiveInsertion = new TitanMassiveInsertion(this.batchGraph, type);
+        Insertion titanMassiveInsertion = new JanusGraphMassiveInsertion(this.batchGraph, type);
         titanMassiveInsertion.createGraph(dataPath, 0 /* scenarioNumber */);
     }
 
     @Override
     public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber)
     {
-        Insertion titanSingleInsertion = new TitanSingleInsertion(this.titanGraph, type, resultsPath);
+        Insertion titanSingleInsertion = new JanusGraphSingleInsertion(this.janusGraph, type, resultsPath);
         titanSingleInsertion.createGraph(dataPath, scenarioNumber);
     }
 
     @Override
     public void shutdown()
     {
-        if (titanGraph == null)
+        if (janusGraph == null)
         {
             return;
         }
         try
         {
-            titanGraph.close();
+            janusGraph.close();
         }
         catch (IOError e)
         {
@@ -289,26 +294,26 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
             System.err.println("Failed to shutdown titan graph: " + e.getMessage());
         }
 
-        titanGraph = null;
+        janusGraph = null;
     }
 
     @Override
     public void delete()
     {
-        titanGraph = buildTitanGraph(type, dbStorageDirectory, config, false /* batchLoading */);
+        janusGraph = buildJanusGraph(type, dbStorageDirectory, config, false /* batchLoading */);
         try
         {
-            titanGraph.close();
+            janusGraph.close();
         }
         catch (IOError e)
         {
             // TODO Fix issue in shutting down titan-cassandra-embedded
             System.err.println("Failed to shutdown titan graph: " + e.getMessage());
         }
-        JanusGraphCleanup.clear(titanGraph);
+        JanusGraphCleanup.clear(janusGraph);
         try
         {
-            titanGraph.close();
+            janusGraph.close();
         }
         catch (IOError e)
         {
@@ -321,7 +326,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public void shutdownMassiveGraph()
     {
-        if (titanGraph == null)
+        if (janusGraph == null)
         {
             return;
         }
@@ -336,7 +341,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         }
         try
         {
-            titanGraph.close();
+            janusGraph.close();
         }
         catch (IOError e)
         {
@@ -344,13 +349,13 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
             System.err.println("Failed to shutdown titan graph: " + e.getMessage());
         }
         batchGraph = null;
-        titanGraph = null;
+        janusGraph = null;
     }
 
     @Override
     public void shortestPath(final Vertex fromNode, Integer node)
     {
-        final Vertex v2 = titanGraph.getVertices(NODE_ID, node).iterator().next();
+        final Vertex v2 = (Vertex) janusGraph.vertices(node).next();
         @SuppressWarnings("rawtypes")
         final GremlinPipeline<String, List> pathPipe = new GremlinPipeline<String, List>(fromNode).as(SIMILAR)
             .out(SIMILAR).loop(SIMILAR, new PipeFunction<LoopBundle<Vertex>, Boolean>() {
@@ -365,7 +370,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public int getNodeCount()
     {
-        long nodeCount = new GremlinPipeline<Object, Object>(titanGraph).V().count();
+        long nodeCount = new GremlinPipeline<Object, Object>(janusGraph).V().count();
         return (int) nodeCount;
     }
 
@@ -373,7 +378,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     public Set<Integer> getNeighborsIds(int nodeId)
     {
         Set<Integer> neighbors = new HashSet<Integer>();
-        Vertex vertex = titanGraph.getVertices(NODE_ID, nodeId).iterator().next();
+        Vertex vertex = (Vertex) janusGraph.vertices(NODE_ID, nodeId).next();
         GremlinPipeline<String, Vertex> pipe = new GremlinPipeline<String, Vertex>(vertex).out(SIMILAR);
         Iterator<Vertex> iter = pipe.iterator();
         while (iter.hasNext())
@@ -387,7 +392,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public double getNodeWeight(int nodeId)
     {
-        Vertex vertex = titanGraph.getVertices(NODE_ID, nodeId).iterator().next();
+        Vertex vertex = (Vertex) janusGraph.vertices(NODE_ID, nodeId).next();
         double weight = getNodeOutDegree(vertex);
         return weight;
     }
@@ -408,19 +413,20 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     public void initCommunityProperty()
     {
         int communityCounter = 0;
-        for (Vertex v : titanGraph.getVertices())
-        {
-            v.setProperty(NODE_COMMUNITY, communityCounter);
-            v.setProperty(COMMUNITY, communityCounter);
-            communityCounter++;
-        }
+//        for (Vertex v : janusGraph.vertices())
+//        {
+//            v.setProperty(NODE_COMMUNITY, communityCounter);
+//            v.setProperty(COMMUNITY, communityCounter);
+//            communityCounter++;
+//        }
     }
 
     @Override
     public Set<Integer> getCommunitiesConnectedToNodeCommunities(int nodeCommunities)
     {
         Set<Integer> communities = new HashSet<Integer>();
-        Iterable<Vertex> vertices = titanGraph.getVertices(NODE_COMMUNITY, nodeCommunities);
+        @SuppressWarnings("unchecked")
+		Iterable<Vertex> vertices = (Iterable<Vertex>) janusGraph.vertices(NODE_COMMUNITY, nodeCommunities);
         for (Vertex vertex : vertices)
         {
             GremlinPipeline<String, Vertex> pipe = new GremlinPipeline<String, Vertex>(vertex).out(SIMILAR);
@@ -438,7 +444,8 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     public Set<Integer> getNodesFromCommunity(int community)
     {
         Set<Integer> nodes = new HashSet<Integer>();
-        Iterable<Vertex> iter = titanGraph.getVertices(COMMUNITY, community);
+        @SuppressWarnings("unchecked")
+		Iterable<Vertex> iter = (Iterable<Vertex>) janusGraph.vertices(COMMUNITY, community);
         for (Vertex v : iter)
         {
             Integer nodeId = v.getProperty(NODE_ID);
@@ -451,7 +458,8 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     public Set<Integer> getNodesFromNodeCommunity(int nodeCommunity)
     {
         Set<Integer> nodes = new HashSet<Integer>();
-        Iterable<Vertex> iter = titanGraph.getVertices(NODE_COMMUNITY, nodeCommunity);
+        @SuppressWarnings("unchecked")
+		Iterable<Vertex> iter = (Iterable<Vertex>) janusGraph.vertices(NODE_COMMUNITY, nodeCommunity);
         for (Vertex v : iter)
         {
             Integer nodeId = v.getProperty(NODE_ID);
@@ -460,12 +468,13 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return nodes;
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public double getEdgesInsideCommunity(int vertexCommunity, int communityVertices)
     {
         double edges = 0;
-        Iterable<Vertex> vertices = titanGraph.getVertices(NODE_COMMUNITY, vertexCommunity);
-        Iterable<Vertex> comVertices = titanGraph.getVertices(COMMUNITY, communityVertices);
+        Iterable<Vertex> vertices = (Iterable<Vertex>) janusGraph.vertices(NODE_COMMUNITY, vertexCommunity);
+        Iterable<Vertex> comVertices = (Iterable<Vertex>) janusGraph.vertices(COMMUNITY, communityVertices);
         for (Vertex vertex : vertices)
         {
             for (Vertex v : vertex.getVertices(Direction.OUT, SIMILAR))
@@ -479,11 +488,12 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return edges;
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public double getCommunityWeight(int community)
     {
         double communityWeight = 0;
-        Iterable<Vertex> iter = titanGraph.getVertices(COMMUNITY, community);
+        Iterable<Vertex> iter = (Iterable<Vertex>) janusGraph.vertices(COMMUNITY, community);
         if (Iterables.size(iter) > 1)
         {
             for (Vertex vertex : iter)
@@ -494,11 +504,12 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return communityWeight;
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public double getNodeCommunityWeight(int nodeCommunity)
     {
         double nodeCommunityWeight = 0;
-        Iterable<Vertex> iter = titanGraph.getVertices(NODE_COMMUNITY, nodeCommunity);
+        Iterable<Vertex> iter = (Iterable<Vertex>) janusGraph.vertices(NODE_COMMUNITY, nodeCommunity);
         for (Vertex vertex : iter)
         {
             nodeCommunityWeight += getNodeOutDegree(vertex);
@@ -506,10 +517,11 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return nodeCommunityWeight;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void moveNode(int nodeCommunity, int toCommunity)
     {
-        Iterable<Vertex> fromIter = titanGraph.getVertices(NODE_COMMUNITY, nodeCommunity);
+		Iterable<Vertex> fromIter = (Iterable<Vertex>) janusGraph.vertices(NODE_COMMUNITY, nodeCommunity);
         for (Vertex vertex : fromIter)
         {
             vertex.setProperty(COMMUNITY, toCommunity);
@@ -519,7 +531,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public double getGraphWeightSum()
     {
-        Iterable<Edge> edges = titanGraph.getEdges();
+        Iterable<Edge> edges = (Iterable<Edge>) janusGraph.edges(null);
         return (double) Iterables.size(edges);
     }
 
@@ -528,7 +540,9 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     {
         Map<Integer, Integer> initCommunities = new HashMap<Integer, Integer>();
         int communityCounter = 0;
-        for (Vertex v : titanGraph.getVertices())
+        @SuppressWarnings("unchecked")
+		List<Vertex> vertexs = (List<Vertex>) janusGraph.vertices();
+        for (Vertex v : vertexs)
         {
             int communityId = v.getProperty(COMMUNITY);
             if (!initCommunities.containsKey(communityId))
@@ -546,7 +560,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public int getCommunity(int nodeCommunity)
     {
-        Vertex vertex = titanGraph.getVertices(NODE_COMMUNITY, nodeCommunity).iterator().next();
+        Vertex vertex = (Vertex) janusGraph.vertices(NODE_COMMUNITY, nodeCommunity).next();
         int community = vertex.getProperty(COMMUNITY);
         return community;
     }
@@ -554,14 +568,15 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public int getCommunityFromNode(int nodeId)
     {
-        Vertex vertex = titanGraph.getVertices(NODE_ID, nodeId).iterator().next();
+        Vertex vertex = (Vertex) janusGraph.vertices(NODE_ID, nodeId).next();
         return vertex.getProperty(COMMUNITY);
     }
 
     @Override
     public int getCommunitySize(int community)
     {
-        Iterable<Vertex> vertices = titanGraph.getVertices(COMMUNITY, community);
+        @SuppressWarnings("unchecked")
+		Iterable<Vertex> vertices = (Iterable<Vertex>) janusGraph.vertices(COMMUNITY, community);
         Set<Integer> nodeCommunities = new HashSet<Integer>();
         for (Vertex v : vertices)
         {
@@ -580,11 +595,11 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         Map<Integer, List<Integer>> communities = new HashMap<Integer, List<Integer>>();
         for (int i = 0; i < numberOfCommunities; i++)
         {
-            Iterator<Vertex> verticesIter = titanGraph.getVertices(COMMUNITY, i).iterator();
+            Iterator<org.apache.tinkerpop.gremlin.structure.Vertex> verticesIter = janusGraph.vertices(COMMUNITY, i);
             List<Integer> vertices = new ArrayList<Integer>();
             while (verticesIter.hasNext())
             {
-                Integer nodeId = verticesIter.next().getProperty(NODE_ID);
+                Integer nodeId = verticesIter.next().value(NODE_ID);
                 vertices.add(nodeId);
             }
             communities.put(i, vertices);
@@ -592,20 +607,21 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         return communities;
     }
 
-    private void createSchema()
+    @SuppressWarnings("unchecked")
+	private void createSchema()
     {
-        final JanusGraphManagement mgmt = titanGraph.openManagement();
-        if (!titanGraph.containsPropertyKey(NODE_ID))
+        final JanusGraphManagement mgmt = janusGraph.openManagement();
+        if (!janusGraph.containsPropertyKey(NODE_ID))
         {
             final PropertyKey key = mgmt.makePropertyKey(NODE_ID).dataType(Integer.class).make();
             mgmt.buildIndex(NODE_ID, (Class<? extends Element>) Vertex.class).addKey(key).unique().buildCompositeIndex();
         }
-        if (!titanGraph.containsPropertyKey(COMMUNITY))
+        if (!janusGraph.containsPropertyKey(COMMUNITY))
         {
             final PropertyKey key = mgmt.makePropertyKey(COMMUNITY).dataType(Integer.class).make();
             mgmt.buildIndex(COMMUNITY, (Class<? extends Element>) Vertex.class).addKey(key).buildCompositeIndex();
         }
-        if (!titanGraph.containsPropertyKey(NODE_COMMUNITY))
+        if (!janusGraph.containsPropertyKey(NODE_COMMUNITY))
         {
             final PropertyKey key = mgmt.makePropertyKey(NODE_COMMUNITY).dataType(Integer.class).make();
             mgmt.buildIndex(NODE_COMMUNITY, (Class<? extends Element>) Vertex.class).addKey(key).buildCompositeIndex();
@@ -618,17 +634,18 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
         mgmt.commit();
     }
 
-    @Override
+    @SuppressWarnings("unchecked")
+	@Override
     public boolean nodeExists(int nodeId)
     {
-        Iterable<Vertex> iter = titanGraph.getVertices(NODE_ID, nodeId);
+        Iterable<Vertex> iter = (Iterable<Vertex>) janusGraph.vertices(NODE_ID, nodeId);
         return iter.iterator().hasNext();
     }
 
     @Override
     public Iterator<Vertex> getVertexIterator()
     {
-        return titanGraph.getVertices().iterator();
+        return null;//(Iterator<Vertex>)janusGraph.vertices(null);
     }
 
     @Override
@@ -652,7 +669,7 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public Iterator<Edge> getAllEdges()
     {
-        return titanGraph.getEdges().iterator();
+        return null;//(Iterator<Edge>)janusGraph.edges(null);
     }
 
     @Override
@@ -700,6 +717,6 @@ public class TitanGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Iter
     @Override
     public Vertex getVertex(Integer i)
     {
-        return titanGraph.getVertices(NODE_ID, i.intValue()).iterator().next();
+        return (Vertex) janusGraph.vertices(NODE_ID, i.intValue()).next();
     }
 }
