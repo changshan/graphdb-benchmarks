@@ -131,10 +131,10 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
     }
 
     @Override
-    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber)
+    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber,Integer blocks)
     {
         Insertion neo4jSingleInsertion = new Neo4jSingleInsertion(this.neo4jGraph, resultsPath);
-        neo4jSingleInsertion.createGraph(dataPath, scenarioNumber);
+        neo4jSingleInsertion.createGraph(dataPath, scenarioNumber,blocks);
     }
 
     @Override

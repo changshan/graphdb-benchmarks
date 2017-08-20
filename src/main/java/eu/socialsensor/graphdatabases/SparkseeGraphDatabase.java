@@ -157,7 +157,7 @@ public class SparkseeGraphDatabase extends GraphDatabaseBase<ObjectsIterator, Ob
     }
 
     @Override
-    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber)
+    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber,Integer blocks)
     {
         Insertion sparkseeSingleInsertion = new SparkseeSingleInsertion(this.session, resultsPath);
         sparkseeSingleInsertion.createGraph(dataPath, scenarioNumber);

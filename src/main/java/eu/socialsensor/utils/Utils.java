@@ -19,7 +19,6 @@ import org.apache.commons.math3.util.MathArrays;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import eu.socialsensor.graphdatabases.GraphDatabase;
-import eu.socialsensor.graphdatabases.JanusGraphDatabase;
 import eu.socialsensor.graphdatabases.Neo4jGraphDatabase;
 import eu.socialsensor.graphdatabases.OrientGraphDatabase;
 import eu.socialsensor.graphdatabases.SparkseeGraphDatabase;
@@ -182,11 +181,12 @@ public class Utils
     {
         final GraphDatabase<?,?,?,?> graphDatabase;
         final File dbStorageDirectory = generateStorageDirectory(type, config.getDbStorageDirectory());
-        if (GraphDatabaseType.TITAN_FLAVORS.contains(type))
-        {
-            graphDatabase = new JanusGraphDatabase(type, config, dbStorageDirectory);
-        }
-        else if (GraphDatabaseType.NEO4J == type)
+//        if (GraphDatabaseType.TITAN_FLAVORS.contains(type))
+//        {
+//            graphDatabase = new JanusGraphDatabase(type, config, dbStorageDirectory);
+//        }
+//        else 
+        if (GraphDatabaseType.NEO4J == type)
         {
             graphDatabase = new Neo4jGraphDatabase(dbStorageDirectory);
         }
@@ -228,7 +228,7 @@ public class Utils
     {
         final GraphDatabase<?,?,?,?> graphDatabase = createDatabaseInstance(config, type);
         graphDatabase.createGraphForSingleLoad();
-        graphDatabase.singleModeLoading(config.getDataset(), null /* resultsPath */, 0);
+        graphDatabase.singleModeLoading(config.getDataset(), null /* resultsPath */, 0,null);
         return graphDatabase;
     }
 

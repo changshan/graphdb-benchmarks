@@ -89,7 +89,7 @@ public class OrientGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Ite
     }
 
     @Override
-    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber)
+    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber,Integer blocks)
     {
         Insertion orientSingleInsertion = new OrientSingleInsertion(this.graph, resultsPath);
         orientSingleInsertion.createGraph(dataPath, scenarioNumber);

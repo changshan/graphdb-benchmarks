@@ -49,7 +49,7 @@ public class SingleInsertionBenchmark extends PermutingBenchmarkBase implements 
     {
         GraphDatabase<?,?,?,?> graphDatabase = Utils.createDatabaseInstance(bench, type);
         graphDatabase.createGraphForSingleLoad();
-        graphDatabase.singleModeLoading(bench.getDataset(), bench.getResultsPath(), scenarioNumber);
+        graphDatabase.singleModeLoading(bench.getDataset(), bench.getResultsPath(), scenarioNumber,bench.getBlockValues());
         graphDatabase.shutdown();
     }
 }

@@ -68,7 +68,7 @@ public interface GraphDatabase<VertexIteratorType, EdgeIteratorType, VertexType,
      * @param resultsPath
      * @param scenarioNumber
      */
-    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber);
+    public void singleModeLoading(File dataPath, File resultsPath, int scenarioNumber,Integer block);
 
     /**
      * Creates a graph database and configures for bulk data insertion

@@ -63,6 +63,9 @@ public class BenchmarkConfiguration
     private static final String PERMUTE_BENCHMARKS = "permute-benchmarks";
     private static final String RANDOM_NODES = "shortest-path-random-nodes";
     
+    //增加SIW阀门
+    private static final String BLOCK_VALUES = "block-values";
+    
     private static final Set<String> metricsReporters = new HashSet<String>();
     static {
         metricsReporters.add(CSV);
@@ -111,6 +114,9 @@ public class BenchmarkConfiguration
     private final int dynamodbWorkerThreads;
     private final boolean dynamodbPrecreateTables;
     private final String dynamodbTablePrefix;
+    
+    //增加SIW的阀门
+    private final Integer blockValues;
 
     public String getDynamodbCredentialsFqClassName()
     {
@@ -223,6 +229,17 @@ public class BenchmarkConfiguration
 
         randomNodes = socialsensor.getInteger(RANDOM_NODES, new Integer(100));
 
+        
+        final boolean blockList = socialsensor.containsKey(BLOCK_VALUES);
+        if (blockList)
+        {
+			List<?> objects = socialsensor.getList(BLOCK_VALUES);
+            blockValues = Integer.parseInt(objects.get(0).toString());
+            
+        }else{
+        	blockValues = null;
+        }
+        
         if (this.benchmarkTypes.contains(BenchmarkType.CLUSTERING))
         {
             if (!socialsensor.containsKey(NODES_COUNT))
@@ -459,4 +476,9 @@ public class BenchmarkConfiguration
     {
         return graphiteHostname != null && !graphiteHostname.isEmpty();
     }
+
+	public Integer getBlockValues() {
+		return blockValues;
+	}
+    
 }
