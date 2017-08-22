@@ -1,5 +1,3 @@
-Fork from https://github.com/socialsensor/graphdb-benchmarks
-
 改进： 
 0、Fixed一些Bug 
 1、适配neo4j 2.3.2 
