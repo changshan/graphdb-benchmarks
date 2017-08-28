@@ -3,6 +3,11 @@ package eu.socialsensor.graphdatabases;
 import java.io.File;
 import java.util.Set;
 
+import org.neo4j.graphalgo.GraphAlgoFactory;
+import org.neo4j.graphalgo.PathFinder;
+import org.neo4j.graphdb.Node;
+import org.neo4j.graphdb.Path;
+import org.neo4j.graphdb.PathExpanders;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
 
@@ -139,7 +144,7 @@ public abstract class GraphDatabaseBase<VertexIteratorType, EdgeIteratorType, Ve
     }
     
     @Override
-    public void shortestPaths(Set<Integer> nodes) {
+    public void shortestPaths(Set<Integer> nodes,Boolean sparkGrouphX) {
         Object tx = null;
         if(GraphDatabaseType.NEO4J == type) {//TODO fix this
             tx = ((Neo4jGraphDatabase) this).neo4jGraph.beginTx();
@@ -152,7 +157,7 @@ public abstract class GraphDatabaseBase<VertexIteratorType, EdgeIteratorType, Ve
                 //time this
                 ctxt = shortestPathTimes.time();
                 try {
-                    shortestPath(from, i);
+                	shortestPath(from, i,sparkGrouphX);
                 } finally {
                     ctxt.stop();
                 }

@@ -122,7 +122,7 @@ public class OrientGraphDatabase extends GraphDatabaseBase<Iterator<Vertex>, Ite
     }
 
     @Override
-    public void shortestPath(final Vertex v1, Integer i)
+    public void shortestPath(final Vertex v1, Integer i,Boolean sparkGrouphX)
     {
         final OrientVertex v2 = (OrientVertex) getVertex(i);
 

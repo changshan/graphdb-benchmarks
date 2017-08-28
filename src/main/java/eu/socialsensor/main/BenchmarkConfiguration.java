@@ -65,6 +65,8 @@ public class BenchmarkConfiguration
     
     //增加SIW阀门
     private static final String BLOCK_VALUES = "block-values";
+    //增加是否使用SparkGrouphX 寻找最短路径问题
+    private static final String SPARK_GROUPHX_VALUES = "spark-values";
     
     private static final Set<String> metricsReporters = new HashSet<String>();
     static {
@@ -117,6 +119,8 @@ public class BenchmarkConfiguration
     
     //增加SIW的阀门
     private final Integer blockValues;
+    private final Boolean sparkValues;
+    
 
     public String getDynamodbCredentialsFqClassName()
     {
@@ -238,6 +242,16 @@ public class BenchmarkConfiguration
             
         }else{
         	blockValues = null;
+        }
+        
+        
+        final boolean sparkGrouphX = socialsensor.containsKey(SPARK_GROUPHX_VALUES);
+        if (sparkGrouphX)
+        {
+			List<?> objects = socialsensor.getList(SPARK_GROUPHX_VALUES);
+			sparkValues = Boolean.valueOf(objects.get(0).toString());
+        }else{
+        	sparkValues = false;
         }
         
         if (this.benchmarkTypes.contains(BenchmarkType.CLUSTERING))
@@ -480,5 +494,8 @@ public class BenchmarkConfiguration
 	public Integer getBlockValues() {
 		return blockValues;
 	}
-    
+
+	public Boolean getSparkValues() {
+		return sparkValues;
+	}
 }

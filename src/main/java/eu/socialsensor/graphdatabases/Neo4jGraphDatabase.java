@@ -1,5 +1,6 @@
 package eu.socialsensor.graphdatabases;
 
+
 import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -11,6 +12,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.graphx.Graph;
+import org.apache.spark.graphx.lib.ShortestPaths;
+import org.apache.spark.sql.Dataset;
+import org.apache.spark.sql.Row;
 import org.neo4j.graphalgo.GraphAlgoFactory;
 import org.neo4j.graphalgo.PathFinder;
 import org.neo4j.graphdb.Direction;
@@ -26,8 +33,11 @@ import org.neo4j.graphdb.ResourceIterator;
 import org.neo4j.graphdb.Transaction;
 import org.neo4j.graphdb.factory.GraphDatabaseFactory;
 import org.neo4j.graphdb.schema.Schema;
+import org.neo4j.harness.ServerControls;
+import org.neo4j.harness.TestServerBuilders;
 import org.neo4j.helpers.collection.Iterators;
 import org.neo4j.kernel.internal.GraphDatabaseAPI;
+import org.neo4j.spark.Neo4jGraph;
 import org.neo4j.unsafe.batchinsert.BatchInserter;
 import org.neo4j.unsafe.batchinsert.BatchInserters;
 
@@ -36,7 +46,10 @@ import eu.socialsensor.insert.Neo4jMassiveInsertion;
 import eu.socialsensor.insert.Neo4jSingleInsertion;
 import eu.socialsensor.main.BenchmarkingException;
 import eu.socialsensor.main.GraphDatabaseType;
+import eu.socialsensor.utils.Neo4JavaSparkContext;
 import eu.socialsensor.utils.Utils;
+import scala.collection.Seq;
+import scala.collection.Seq$;
 
 /**
  * Neo4j graph database implementation
@@ -48,6 +61,8 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
 {
     protected GraphDatabaseService neo4jGraph = null;
     private Schema schema = null;
+    
+    public static final String QUERY = "MATCH (n:Node}) RETURN n";
 
     private BatchInserter inserter = null;
 
@@ -185,15 +200,53 @@ public class Neo4jGraphDatabase extends GraphDatabaseBase<Iterator<Node>, Iterat
 
         inserter = null;
     }
-
     @Override
-    public void shortestPath(Node n1, Integer i)
+    public void shortestPath(Node n1, Integer i,Boolean sparkGrouphX)
     {
-        PathFinder<Path> finder
-            = GraphAlgoFactory.shortestPath(PathExpanders.forType(Neo4jGraphDatabase.RelTypes.SIMILAR), 5);
-        Node n2 = getVertex(i);
-        Path path = finder.findSinglePath(n1, n2);
+    	
+    	if(sparkGrouphX){
+    		//使用sparkGrouphX计算结果
+    		SparkConf conf;
+    	    JavaSparkContext sc;
+    	    Neo4JavaSparkContext csc;
+    	    ServerControls server;
+    	    server = TestServerBuilders.newInProcessBuilder()
+                    .withFixture(QUERY)
+                    .newServer();
+            conf = new SparkConf()
+                    .setAppName("neoTest")
+                    //配置多少个节点
+                    .setMaster("local[*]")
+                    .set("spark.driver.allowMultipleContexts","true")
+                    .set("spark.neo4j.bolt.url", server.boltURI().toString());
+            sc = new JavaSparkContext(conf);
+            csc = Neo4JavaSparkContext.neo4jContext(sc);
+            
+            //获取相邻的节点
+            Set<Integer> set = getNeighborsIds(i);
+            
+            // 构造有向图的边序列
+            Dataset<Row> found = csc.queryDF(QUERY, null,"nodeId", "integer");
 
+            // 构造有向图
+            Graph graph = Neo4jGraph.loadGraph(sc.sc(), "A", null, "B");
+            
+            // 要求最短路径的点集合
+            
+            // 计算最短路径
+            Seq<Object> empty = (Seq<Object>) Seq$.MODULE$.empty();
+           
+            ShortestPaths.run(graph, empty,null);
+
+            server.close();
+            sc.close();
+            
+    	}else{
+    		//使用自己的算法求最短路径
+            PathFinder<Path> finder= GraphAlgoFactory.shortestPath(PathExpanders.forType(Neo4jGraphDatabase.RelTypes.SIMILAR), 5);
+            Node n2 = getVertex(i);
+            Path path = finder.findSinglePath(n1, n2);
+    	}
     }
 
     //TODO can unforced option be pulled into configuration?

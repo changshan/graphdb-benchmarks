@@ -37,7 +37,7 @@ public class FindShortestPathBenchmark extends PermutingBenchmarkBase implements
         graphDatabase.open();
         Stopwatch watch = new Stopwatch();
         watch.start();
-        graphDatabase.shortestPaths(generatedNodes);
+        graphDatabase.shortestPaths(generatedNodes,bench.getSparkValues());
         graphDatabase.shutdown();
         times.get(type).add((double) watch.elapsed(TimeUnit.MILLISECONDS));
     }

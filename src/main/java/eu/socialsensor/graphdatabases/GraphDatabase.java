@@ -100,7 +100,7 @@ public interface GraphDatabase<VertexIteratorType, EdgeIteratorType, VertexType,
      * @param nodes
      *            any number of random nodes
      */
-    public void shortestPaths(Set<Integer> nodes);
+    public void shortestPaths(Set<Integer> nodes,Boolean sparkGrouphX);
     
     /**
      * Execute findShortestPaths query from the Query interface
@@ -108,7 +108,7 @@ public interface GraphDatabase<VertexIteratorType, EdgeIteratorType, VertexType,
      * @param nodes
      *            any number of random nodes
      */
-    public void shortestPath(final VertexType fromNode, Integer node);
+    public void shortestPath(final VertexType fromNode, Integer node,Boolean sparkGrouphX);
 
     /**
      * @return the number of nodes

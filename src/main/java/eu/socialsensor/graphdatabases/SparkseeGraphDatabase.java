@@ -191,7 +191,7 @@ public class SparkseeGraphDatabase extends GraphDatabaseBase<ObjectsIterator, Ob
     }
 
     @Override
-    public void shortestPath(final Long srcNodeID, Integer i)
+    public void shortestPath(final Long srcNodeID, Integer i,Boolean sparkGrouphX)
     {
         int nodeType = sparkseeGraph.findType(NODE);
         int edgeType = sparkseeGraph.findType(SIMILAR);
